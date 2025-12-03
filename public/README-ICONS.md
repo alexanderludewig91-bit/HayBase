@@ -9,7 +9,7 @@ Platzieren Sie folgende Dateien im `/public` Ordner:
 - `icon-192.png` - 192x192 Pixel
 - `icon-512.png` - 512x512 Pixel
 
-## Icon-Generierung
+## Icon-Generierungen
 
 ### Option 1: Online-Tool
 1. Besuchen Sie https://realfavicongenerator.net/
