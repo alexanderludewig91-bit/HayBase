@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Prevent overscroll bounce on iOS */
+    overscroll-behavior-y: none;
+    /* App-like full height */
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
+    overflow-x: hidden;
+  }
+  
+  /* Touch-optimierte Elemente */
+  button, a, input, select, textarea {
+    @apply touch-manipulation;
+  }
+  
+  /* Verbesserte Lesbarkeit auf mobilen Geräten */
+  @media (max-width: 768px) {
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+  }
+  
+  /* Smooth Scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    /* Prevent pull-to-refresh on mobile */
+    overscroll-behavior-y: none;
+  }
+  
+  /* Verbesserte Focus-States */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  
+  /* App-ähnliche Transitions */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent text selection on buttons and interactive elements */
+  button, a {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Smooth page transitions */
+  body {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  
+  /* Safe area insets for notched devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Page Transition Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-transition {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Loading States */
+@layer utilities {
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  .loading-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+/* Responsive Tabellen - Card-Ansicht auf Mobile */
+@layer utilities {
+  .table-responsive {
+    @apply block md:table;
+  }
+  
+  .table-responsive thead {
+    @apply hidden md:table-header-group;
+  }
+  
+  .table-responsive tbody {
+    @apply block md:table-row-group;
+  }
+  
+  .table-responsive tr {
+    @apply block mb-4 md:table-row md:mb-0 border md:border-0 rounded-lg md:rounded-none;
+  }
+  
+  .table-responsive td {
+    @apply block md:table-cell p-3 md:p-4 text-right md:text-left before:content-[attr(data-label)] before:font-semibold before:block md:before:hidden mb-1 md:mb-0;
+  }
+  
+  .table-responsive td:last-child {
+    @apply mb-0;
+  }
+}
+
+/* PWA specific styles */
+@media (display-mode: standalone) {
+  body {
+    /* Additional styles when running as PWA */
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  /* Hide browser UI elements */
+  nav {
+    /* Ensure nav is always visible in standalone mode */
+    position: sticky;
+  }
+}

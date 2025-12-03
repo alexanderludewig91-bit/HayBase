@@ -1,0 +1,181 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  accounts        Account[]
+  accountTypes    AccountType[]
+  accountGroups   AccountGroup[]
+  months          Month[]
+  transactions    Transaction[]
+  transfers       Transfer[]
+  wealthSnapshots WealthSnapshot[]
+  planSnapshots   PlanSnapshot[]
+
+  @@map("users")
+}
+
+model Account {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  name           String
+  typeId         String   @map("type_id")
+  groupId        String   @map("group_id")
+  initialBalance Decimal? @default(0) @map("initial_balance") @db.Decimal(12, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          AccountType   @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  group         AccountGroup  @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  transactions  Transaction[]
+  transfersFrom Transfer[]    @relation("TransferFrom")
+  transfersTo   Transfer[]    @relation("TransferTo")
+
+  @@map("accounts")
+}
+
+model AccountType {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  code      String // Für Migration: CHECKING, SAVINGS, etc.
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[]
+
+  @@unique([userId, code])
+  @@map("account_types")
+}
+
+model AccountGroup {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  code      String // Für Migration: LIQUID, INVESTMENT, etc.
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[]
+
+  @@unique([userId, code])
+  @@map("account_groups")
+}
+
+model Month {
+  id        String      @id @default(cuid())
+  userId    String      @map("user_id")
+  year      Int
+  month     Int // 1-12
+  status    MonthStatus @default(OPEN)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  transfers    Transfer[]
+
+  @@unique([userId, year, month])
+  @@map("months")
+}
+
+enum MonthStatus {
+  OPEN
+  CLOSED
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  userId          String            @map("user_id")
+  accountId       String            @map("account_id")
+  monthId         String            @map("month_id")
+  date            DateTime
+  amount          Decimal           @db.Decimal(12, 2)
+  transactionType TransactionType   @map("transaction_type")
+  status          TransactionStatus
+  category        String
+  notes           String?           @db.Text
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  month   Month   @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model Transfer {
+  id            String            @id @default(cuid())
+  userId        String            @map("user_id")
+  fromAccountId String            @map("from_account_id")
+  toAccountId   String            @map("to_account_id")
+  monthId       String            @map("month_id")
+  date          DateTime
+  amount        Decimal           @db.Decimal(12, 2)
+  status        TransactionStatus
+  category      String            @default("Transfer")
+  notes         String?           @db.Text
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount Account @relation("TransferFrom", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccount   Account @relation("TransferTo", fields: [toAccountId], references: [id], onDelete: Cascade)
+  month       Month   @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  @@map("transfers")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionStatus {
+  BOOKED
+  PLANNED
+}
+
+model WealthSnapshot {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  date          DateTime
+  totalNetWorth Decimal  @map("total_net_worth") @db.Decimal(12, 2)
+  liquidAssets  Decimal  @map("liquid_assets") @db.Decimal(12, 2)
+  investments   Decimal  @db.Decimal(12, 2)
+  reserves      Decimal  @db.Decimal(12, 2)
+  liabilities   Decimal? @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wealth_snapshots")
+}
+
+model PlanSnapshot {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  year            Int
+  month           Int // 1-12
+  plannedNetWorth Decimal  @map("planned_net_worth") @db.Decimal(12, 2)
+  plannedCashflow Decimal? @map("planned_cashflow") @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month])
+  @@map("plan_snapshots")
+}

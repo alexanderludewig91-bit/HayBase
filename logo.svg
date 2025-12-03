@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Hintergrund -->
+  <rect width="512" height="512" rx="96" fill="#3b82f6"/>
+  
+  <!-- Text "HB" für HayBase -->
+  <text x="256" y="320" font-family="Arial, sans-serif" font-size="200" font-weight="bold" fill="white" text-anchor="middle">HB</text>
+  
+  <!-- Untertitel -->
+  <text x="256" y="380" font-family="Arial, sans-serif" font-size="48" fill="rgba(255,255,255,0.9)" text-anchor="middle">HayBase</text>
+</svg>
