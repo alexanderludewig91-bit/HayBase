@@ -6,6 +6,20 @@ const prisma = new PrismaClient()
 async function main() {
   console.log("Starte Seed...")
 
+  // 0. Alle Daten löschen (für sauberen Seed)
+  console.log("Lösche alte Daten...")
+  await prisma.wealthSnapshot.deleteMany({})
+  await prisma.planSnapshot.deleteMany({})
+  await prisma.reserve.deleteMany({})
+  await prisma.transfer.deleteMany({})
+  await prisma.transaction.deleteMany({})
+  await prisma.month.deleteMany({})
+  await prisma.account.deleteMany({})
+  await prisma.accountGroup.deleteMany({})
+  await prisma.accountType.deleteMany({})
+  await prisma.user.deleteMany({})
+  console.log("Alte Daten gelöscht")
+
   // 1. User anlegen
   const passwordHash = await bcrypt.hash("test123", 10)
   const user = await prisma.user.upsert({
@@ -20,14 +34,6 @@ async function main() {
   console.log("User erstellt:", user.name)
 
   // 2. Account Types anlegen
-  try {
-    await prisma.accountType.deleteMany({
-      where: { userId: user.id },
-    })
-  } catch (error) {
-    // Tabellen existieren möglicherweise noch nicht
-    console.log("Account Types Tabelle existiert noch nicht oder ist leer")
-  }
 
   const accountTypes = await Promise.all([
     prisma.accountType.upsert({
@@ -89,14 +95,6 @@ async function main() {
   console.log(`${accountTypes.length} Kontotypen erstellt`)
 
   // 3. Account Groups anlegen
-  try {
-    await prisma.accountGroup.deleteMany({
-      where: { userId: user.id },
-    })
-  } catch (error) {
-    // Tabellen existieren möglicherweise noch nicht
-    console.log("Account Groups Tabelle existiert noch nicht oder ist leer")
-  }
 
   const accountGroups = await Promise.all([
     prisma.accountGroup.upsert({
@@ -139,10 +137,7 @@ async function main() {
 
   console.log(`${accountGroups.length} Kontogruppen erstellt`)
 
-  // 4. Accounts anlegen (lösche alte Accounts für sauberen Seed)
-  await prisma.account.deleteMany({
-    where: { userId: user.id },
-  })
+  // 4. Accounts anlegen
 
   const checkingType = accountTypes.find((t) => t.code === "CHECKING")!
   const savingsType = accountTypes.find((t) => t.code === "SAVINGS")!
@@ -231,10 +226,13 @@ async function main() {
 
   console.log(`${accounts.length} Accounts erstellt`)
 
-  // 3. Aktuellen Monat anlegen (lösche alte Monate für sauberen Seed)
-  await prisma.month.deleteMany({
+  // Accounts mit Relations neu laden (für spätere Berechnungen)
+  const accountsWithRelations = await prisma.account.findMany({
     where: { userId: user.id },
+    include: { group: true, type: true },
   })
+
+  // 3. Aktuellen Monat anlegen
 
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -251,16 +249,7 @@ async function main() {
 
   console.log(`Monat erstellt: ${currentMonth}/${currentYear}`)
 
-  // 4. Beispiel-Transactions, Transfers und Reserves (lösche alte Daten)
-  await prisma.transaction.deleteMany({
-    where: { userId: user.id },
-  })
-  await prisma.transfer.deleteMany({
-    where: { userId: user.id },
-  })
-  await prisma.reserve.deleteMany({
-    where: { userId: user.id },
-  })
+  // 4. Beispiel-Transactions, Transfers und Reserves
 
   const giroAccount = accounts[0]
   const tagesgeldAccount = accounts[1]
@@ -418,10 +407,7 @@ async function main() {
 
   console.log(`${reserves.length} Reserve-Transaktionen erstellt`)
 
-  // 5. WealthSnapshot für aktuellen Monat (lösche alte Snapshots)
-  await prisma.wealthSnapshot.deleteMany({
-    where: { userId: user.id },
-  })
+  // 5. WealthSnapshot für aktuellen Monat
 
   // Berechne aktuelle Salden aus Transactions, Transfers und Reserves
   const bookedTransactions = transactions.filter((t) => t.status === TransactionStatus.BOOKED)
@@ -429,7 +415,8 @@ async function main() {
   const bookedReserves = reserves.filter((r) => r.status === TransactionStatus.BOOKED)
   const accountBalances = new Map<string, number>()
 
-  accounts.forEach((acc) => {
+  // Verwende accountsWithRelations, die bereits die group-Relation geladen haben
+  accountsWithRelations.forEach((acc) => {
     let balance = Number(acc.initialBalance)
     
     // Für Rückstellungskonten: nur Reserves
@@ -465,19 +452,13 @@ async function main() {
     accountBalances.set(acc.id, balance)
   })
 
-  // Lade Accounts mit Gruppen für Berechnung
-  const accountsWithGroups = await prisma.account.findMany({
-    where: { userId: user.id },
-    include: { group: true },
-  })
-
-  const currentLiquid = accountsWithGroups
+  const currentLiquid = accountsWithRelations
     .filter((a) => a.group.code === "LIQUID")
     .reduce((sum, a) => sum + (accountBalances.get(a.id) || 0), 0)
-  const currentInvestments = accountsWithGroups
+  const currentInvestments = accountsWithRelations
     .filter((a) => a.group.code === "INVESTMENT")
     .reduce((sum, a) => sum + (accountBalances.get(a.id) || 0), 0)
-  const currentReserves = accountsWithGroups
+  const currentReserves = accountsWithRelations
     .filter((a) => a.group.code === "RESERVE")
     .reduce((sum, a) => sum + (accountBalances.get(a.id) || 0), 0)
 
