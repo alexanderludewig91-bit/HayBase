@@ -53,6 +53,8 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
   const [loading, setLoading] = useState(false)
   const [accountTypes, setAccountTypes] = useState<AccountType[]>([])
   const [accountGroups, setAccountGroups] = useState<AccountGroup[]>([])
+  const [allAccountTypes, setAllAccountTypes] = useState<AccountType[]>([]) // Alle Typen inkl. RESERVE
+  const [allAccountGroups, setAllAccountGroups] = useState<AccountGroup[]>([]) // Alle Gruppen inkl. RESERVE
   const getInitialBalance = () => {
     if (!account.initialBalance) return "0"
     if (typeof account.initialBalance === "number") {
@@ -71,16 +73,35 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 
   useEffect(() => {
     if (open) {
-      // Lade Typen und Gruppen
+      // Lade alle Typen und Gruppen (inkl. RESERVE für Account-Bearbeitung)
       Promise.all([
         fetch("/api/account-types/list").then((res) => res.json()),
         fetch("/api/account-groups/list").then((res) => res.json()),
       ]).then(([types, groups]) => {
-        setAccountTypes(types)
-        setAccountGroups(groups)
+        setAllAccountTypes(types)
+        setAllAccountGroups(groups)
+        // Filtere RESERVE für die Dropdowns (werden nur angezeigt, nicht ausgewählt)
+        setAccountTypes(types.filter((t: AccountType) => t.code !== "RESERVE"))
+        setAccountGroups(groups.filter((g: AccountGroup) => g.code !== "RESERVE"))
       })
     }
   }, [open])
+
+  // Wenn Typ "Rückstellung" gewählt wird, automatisch Gruppe "Rückstellungen" setzen
+  useEffect(() => {
+    const selectedType = allAccountTypes.find((t) => t.id === formData.typeId)
+    if (selectedType?.code === "RESERVE") {
+      const reserveGroup = allAccountGroups.find((g) => g.code === "RESERVE")
+      if (reserveGroup) {
+        setFormData((prev) => ({ ...prev, groupId: reserveGroup.id }))
+      }
+    }
+  }, [formData.typeId, allAccountTypes, allAccountGroups])
+
+  const isReserveType = () => {
+    const selectedType = allAccountTypes.find((t) => t.id === formData.typeId)
+    return selectedType?.code === "RESERVE"
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -146,14 +167,14 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
               <Select
                 value={formData.typeId}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, typeId: value })
+                  setFormData({ ...formData, typeId: value, groupId: "" })
                 }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {accountTypes.map((type) => (
+                  {allAccountTypes.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       {type.name}
                     </SelectItem>
@@ -168,18 +189,36 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
                 onValueChange={(value) =>
                   setFormData({ ...formData, groupId: value })
                 }
+                disabled={isReserveType()}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {accountGroups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
+                  {isReserveType() ? (
+                    // Bei Rückstellungstyp: Nur Rückstellungen-Gruppe anzeigen
+                    allAccountGroups
+                      .filter((g) => g.code === "RESERVE")
+                      .map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name}
+                        </SelectItem>
+                      ))
+                  ) : (
+                    // Bei anderen Typen: Alle Gruppen außer RESERVE
+                    accountGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {isReserveType() && (
+                <p className="text-xs text-muted-foreground">
+                  Die Gruppe "Rückstellungen" wird automatisch zugewiesen.
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="initialBalance">Startsaldo</Label>

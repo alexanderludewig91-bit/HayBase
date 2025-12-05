@@ -23,16 +23,29 @@ export function AppWrapper({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let touchStartY = 0
     let touchEndY = 0
+    let isScrolling = false
 
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY
+      isScrolling = false
     }
 
     const handleTouchMove = (e: TouchEvent) => {
       touchEndY = e.touches[0].clientY
-      // Prevent pull-to-refresh when scrolling down
-      if (window.scrollY === 0 && touchEndY > touchStartY) {
+      const deltaY = touchEndY - touchStartY
+      
+      // Nur verhindern, wenn wir am oberen Rand sind, nach unten scrollen wollen,
+      // das Event cancelable ist und noch nicht gescrollt wurde
+      if (
+        window.scrollY === 0 && 
+        deltaY > 0 && 
+        e.cancelable && 
+        !isScrolling
+      ) {
         e.preventDefault()
+      } else {
+        // Wenn wir scrollen, markiere dass Scrolling aktiv ist
+        isScrolling = true
       }
     }
 

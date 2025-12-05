@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TransactionStatus } from "@prisma/client"
 import { formatCurrency, formatMonthYear } from "@/lib/formatters"
+import { CreateReserveDialog } from "@/components/reserves/create-reserve-dialog"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 async function getCurrentMonth(userId: string) {
   // Hole den aktuellen Monat (OPEN) oder den letzten Monat
@@ -20,6 +23,14 @@ async function getCurrentMonth(userId: string) {
     },
     include: {
       transactions: {
+        include: {
+          account: true,
+        },
+        orderBy: {
+          date: "desc",
+        },
+      },
+      reserves: {
         include: {
           account: true,
         },
@@ -67,7 +78,7 @@ async function getAccountsWithBalances(userId: string, monthId: string) {
     ],
   })
 
-  const [transactions, transfers] = await Promise.all([
+  const [transactions, transfers, reserves] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         userId,
@@ -82,32 +93,48 @@ async function getAccountsWithBalances(userId: string, monthId: string) {
         status: TransactionStatus.BOOKED,
       },
     }),
+    prisma.reserve.findMany({
+      where: {
+        userId,
+        monthId,
+        status: TransactionStatus.BOOKED,
+      },
+    }),
   ])
 
   // Berechne Salden
   const accountBalances = accounts.map((account) => {
     let balance = Number(account.initialBalance || 0)
     
-    // Transaktionen
-    transactions.forEach((t) => {
-      if (t.accountId === account.id) {
-        if (t.transactionType === "INCOME") {
-          balance += Number(t.amount)
-        } else {
-          balance -= Number(t.amount)
+    // Transaktionen (nur für nicht-Rückstellungskonten)
+    if (account.group.code !== "RESERVE") {
+      transactions.forEach((t) => {
+        if (t.accountId === account.id) {
+          if (t.transactionType === "INCOME") {
+            balance += Number(t.amount)
+          } else {
+            balance -= Number(t.amount)
+          }
         }
-      }
-    })
-    
-    // Transfers: vom Quellkonto abziehen, zum Zielkonto hinzufügen
-    transfers.forEach((transfer) => {
-      if (transfer.fromAccountId === account.id) {
-        balance -= Number(transfer.amount)
-      }
-      if (transfer.toAccountId === account.id) {
-        balance += Number(transfer.amount)
-      }
-    })
+      })
+      
+      // Transfers: vom Quellkonto abziehen, zum Zielkonto hinzufügen
+      transfers.forEach((transfer) => {
+        if (transfer.fromAccountId === account.id) {
+          balance -= Number(transfer.amount)
+        }
+        if (transfer.toAccountId === account.id) {
+          balance += Number(transfer.amount)
+        }
+      })
+    } else {
+      // Für Rückstellungskonten: InitialBalance + Summe aller Reserve-Transaktionen
+      reserves.forEach((r) => {
+        if (r.accountId === account.id) {
+          balance += Number(r.amount) // Positiv = Bildung, Negativ = Auflösung
+        }
+      })
+    }
     
     return { ...account, balance }
   })
@@ -142,7 +169,14 @@ export default async function DashboardPage() {
   const expenses = bookedTransactions
     .filter((t) => t.transactionType === "EXPENSE")
     .reduce((sum, t) => sum + Number(t.amount), 0)
-  const netCashflow = income - expenses
+  
+  // Rückstellungen: Summe aller Reserve-Transaktionen (positiv = Bildung, negativ = Auflösung)
+  const reserves = month.reserves
+    .filter((r) => r.status === TransactionStatus.BOOKED)
+    .reduce((sum, r) => sum + Number(r.amount), 0)
+  
+  // Cashflow = Einnahmen - Ausgaben - Rückstellungen
+  const netCashflow = income - expenses - reserves
 
   const plannedIncome = month.transactions
     .filter((t) => t.status === TransactionStatus.PLANNED && t.transactionType === "INCOME")
@@ -159,7 +193,8 @@ export default async function DashboardPage() {
   const liquidTotal = liquidAccounts.reduce((sum, a) => sum + a.balance, 0)
   const investmentTotal = investmentAccounts.reduce((sum, a) => sum + a.balance, 0)
   const reserveTotal = reserveAccounts.reduce((sum, a) => sum + a.balance, 0)
-  const totalNetWorth = liquidTotal + investmentTotal + reserveTotal
+  // Nettovermögen = Summe aller Konten - Rückstellungen
+  const totalNetWorth = liquidTotal + investmentTotal - reserveTotal
 
   // Letzte Buchungen
   const recentTransactions = month.transactions.slice(0, 10)
@@ -167,13 +202,25 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Monats-Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {formatMonthYear(month.month, month.year)}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          Status: {month.status === "OPEN" ? "Offen" : "Geschlossen"}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {formatMonthYear(month.month, month.year)}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Status: {month.status === "OPEN" ? "Offen" : "Geschlossen"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <CreateReserveDialog 
+            userId={session.user.id} 
+            monthId={month.id} 
+            reserveAccounts={reserveAccounts} 
+          />
+          <Link href="/reserves">
+            <Button variant="outline">Alle Rückstellungen</Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPI-Kacheln */}

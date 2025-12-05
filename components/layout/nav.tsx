@@ -20,6 +20,7 @@ const navItems = [
   { href: "/accounts", label: "Konten" },
   { href: "/months", label: "Monate" },
   { href: "/transactions", label: "Transaktionen" },
+  { href: "/reserves", label: "Rückstellungen" },
   { href: "/wealth", label: "Vermögen" },
   { href: "/plan", label: "Plan vs. Ist" },
 ]

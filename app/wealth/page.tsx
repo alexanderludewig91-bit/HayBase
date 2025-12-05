@@ -36,6 +36,11 @@ async function calculateCurrentWealth(userId: string) {
           status: "BOOKED",
         },
       },
+      reserves: {
+        where: {
+          status: "BOOKED",
+        },
+      },
     },
   })
 
@@ -46,13 +51,16 @@ async function calculateCurrentWealth(userId: string) {
   })
 
   months.forEach((month) => {
-    // Transaktionen
+    // Transaktionen (nur für nicht-Rückstellungskonten)
     month.transactions.forEach((t) => {
-      const current = accountBalances.get(t.accountId) || 0
-      if (t.transactionType === "INCOME") {
-        accountBalances.set(t.accountId, current + Number(t.amount))
-      } else {
-        accountBalances.set(t.accountId, current - Number(t.amount))
+      const account = accounts.find((a) => a.id === t.accountId)
+      if (account && account.group.code !== "RESERVE") {
+        const current = accountBalances.get(t.accountId) || 0
+        if (t.transactionType === "INCOME") {
+          accountBalances.set(t.accountId, current + Number(t.amount))
+        } else {
+          accountBalances.set(t.accountId, current - Number(t.amount))
+        }
       }
     })
     
@@ -62,6 +70,12 @@ async function calculateCurrentWealth(userId: string) {
       const toBalance = accountBalances.get(transfer.toAccountId) || 0
       accountBalances.set(transfer.fromAccountId, fromBalance - Number(transfer.amount))
       accountBalances.set(transfer.toAccountId, toBalance + Number(transfer.amount))
+    })
+
+    // Reserve-Transaktionen: nur für Rückstellungskonten
+    month.reserves.forEach((r) => {
+      const current = accountBalances.get(r.accountId) || 0
+      accountBalances.set(r.accountId, current + Number(r.amount))
     })
   })
 
@@ -75,8 +89,9 @@ async function calculateCurrentWealth(userId: string) {
     .filter((a) => a.group.code === "RESERVE")
     .reduce((sum, a) => sum + (accountBalances.get(a.id) || 0), 0)
 
+  // Nettovermögen = Summe aller Konten - Rückstellungen
   return {
-    totalNetWorth: liquidAssets + investments + reserves,
+    totalNetWorth: liquidAssets + investments - reserves,
     liquidAssets,
     investments,
     reserves,

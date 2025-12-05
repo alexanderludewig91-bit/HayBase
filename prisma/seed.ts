@@ -251,11 +251,14 @@ async function main() {
 
   console.log(`Monat erstellt: ${currentMonth}/${currentYear}`)
 
-  // 4. Beispiel-Transactions und Transfers (lösche alte Daten)
+  // 4. Beispiel-Transactions, Transfers und Reserves (lösche alte Daten)
   await prisma.transaction.deleteMany({
     where: { userId: user.id },
   })
   await prisma.transfer.deleteMany({
+    where: { userId: user.id },
+  })
+  await prisma.reserve.deleteMany({
     where: { userId: user.id },
   })
 
@@ -263,6 +266,8 @@ async function main() {
   const tagesgeldAccount = accounts[1]
   const bitpandaAccount = accounts[2]
   const steuerReserve = accounts[4]
+  const autoReserve = accounts[5]
+  const nebenkostenReserve = accounts[6]
 
   const transactions = await Promise.all([
     // Gehalt
@@ -349,20 +354,6 @@ async function main() {
 
   // Transfers erstellen (separat von Transactions)
   const transfers = await Promise.all([
-    // Steuer-Rücklage Transfer
-    prisma.transfer.create({
-      data: {
-        userId: user.id,
-        fromAccountId: giroAccount.id,
-        toAccountId: steuerReserve.id,
-        monthId: month.id,
-        date: new Date(currentYear, currentMonth - 1, 10),
-        amount: 300,
-        status: TransactionStatus.BOOKED,
-        category: "Steuer-Rücklage",
-        notes: "Transfer zu Rückstellung Steuern",
-      },
-    }),
     // ETF-Sparplan Transfer
     prisma.transfer.create({
       data: {
@@ -382,39 +373,94 @@ async function main() {
   console.log(`${transactions.length} Transaktionen erstellt`)
   console.log(`${transfers.length} Transfers erstellt`)
 
+  // 4b. Beispiel-Reserve-Transaktionen
+  const reserves = await Promise.all([
+    // Reserve-Bildung: Steuern
+    prisma.reserve.create({
+      data: {
+        userId: user.id,
+        accountId: steuerReserve.id,
+        monthId: month.id,
+        date: new Date(currentYear, currentMonth - 1, 10),
+        amount: 200, // Bildung
+        status: TransactionStatus.BOOKED,
+        category: "Steuern",
+        notes: "Monatliche Rückstellung für Steuern",
+      },
+    }),
+    // Reserve-Bildung: Auto
+    prisma.reserve.create({
+      data: {
+        userId: user.id,
+        accountId: autoReserve.id,
+        monthId: month.id,
+        date: new Date(currentYear, currentMonth - 1, 12),
+        amount: 150, // Bildung
+        status: TransactionStatus.BOOKED,
+        category: "Auto",
+        notes: "Monatliche Rückstellung für Auto-Reparaturen",
+      },
+    }),
+    // Reserve-Auflösung: Nebenkosten (Beispiel: Nebenkostennachzahlung)
+    prisma.reserve.create({
+      data: {
+        userId: user.id,
+        accountId: nebenkostenReserve.id,
+        monthId: month.id,
+        date: new Date(currentYear, currentMonth - 1, 15),
+        amount: -300, // Auflösung
+        status: TransactionStatus.BOOKED,
+        category: "Nebenkosten",
+        notes: "Auflösung für Nebenkostennachzahlung",
+      },
+    }),
+  ])
+
+  console.log(`${reserves.length} Reserve-Transaktionen erstellt`)
+
   // 5. WealthSnapshot für aktuellen Monat (lösche alte Snapshots)
   await prisma.wealthSnapshot.deleteMany({
     where: { userId: user.id },
   })
 
-  // Berechne aktuelle Salden aus Transactions und Transfers
+  // Berechne aktuelle Salden aus Transactions, Transfers und Reserves
   const bookedTransactions = transactions.filter((t) => t.status === TransactionStatus.BOOKED)
   const bookedTransfers = transfers.filter((t) => t.status === TransactionStatus.BOOKED)
+  const bookedReserves = reserves.filter((r) => r.status === TransactionStatus.BOOKED)
   const accountBalances = new Map<string, number>()
 
   accounts.forEach((acc) => {
     let balance = Number(acc.initialBalance)
     
-    // Transaktionen
-    bookedTransactions.forEach((t) => {
-      if (t.accountId === acc.id) {
-        if (t.transactionType === TransactionType.INCOME) {
-          balance += Number(t.amount)
-        } else {
-          balance -= Number(t.amount)
+    // Für Rückstellungskonten: nur Reserves
+    if (acc.group.code === "RESERVE") {
+      bookedReserves.forEach((r) => {
+        if (r.accountId === acc.id) {
+          balance += Number(r.amount) // Positiv = Bildung, Negativ = Auflösung
         }
-      }
-    })
-    
-    // Transfers: vom Quellkonto abziehen, zum Zielkonto hinzufügen
-    bookedTransfers.forEach((transfer) => {
-      if (transfer.fromAccountId === acc.id) {
-        balance -= Number(transfer.amount)
-      }
-      if (transfer.toAccountId === acc.id) {
-        balance += Number(transfer.amount)
-      }
-    })
+      })
+    } else {
+      // Für normale Konten: Transactions und Transfers
+      bookedTransactions.forEach((t) => {
+        if (t.accountId === acc.id) {
+          if (t.transactionType === TransactionType.INCOME) {
+            balance += Number(t.amount)
+          } else {
+            balance -= Number(t.amount)
+          }
+        }
+      })
+      
+      // Transfers: vom Quellkonto abziehen, zum Zielkonto hinzufügen
+      bookedTransfers.forEach((transfer) => {
+        if (transfer.fromAccountId === acc.id) {
+          balance -= Number(transfer.amount)
+        }
+        if (transfer.toAccountId === acc.id) {
+          balance += Number(transfer.amount)
+        }
+      })
+    }
     
     accountBalances.set(acc.id, balance)
   })
@@ -439,7 +485,7 @@ async function main() {
     data: {
       userId: user.id,
       date: new Date(currentYear, currentMonth - 1, 28),
-      totalNetWorth: currentLiquid + currentInvestments + currentReserves,
+      totalNetWorth: currentLiquid + currentInvestments - currentReserves,
       liquidAssets: currentLiquid,
       investments: currentInvestments,
       reserves: currentReserves,

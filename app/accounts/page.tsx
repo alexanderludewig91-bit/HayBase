@@ -80,7 +80,10 @@ async function getAccounts(userId: string) {
 
 async function getAccountTypes(userId: string) {
   return await prisma.accountType.findMany({
-    where: { userId },
+    where: { 
+      userId,
+      code: { not: "RESERVE" }, // Rückstellungen ausblenden (hardcoded)
+    },
     orderBy: { name: "asc" },
     include: {
       _count: {
@@ -94,7 +97,10 @@ async function getAccountTypes(userId: string) {
 
 async function getAccountGroups(userId: string) {
   return await prisma.accountGroup.findMany({
-    where: { userId },
+    where: { 
+      userId,
+      code: { not: "RESERVE" }, // Rückstellungen ausblenden (hardcoded)
+    },
     orderBy: { name: "asc" },
     include: {
       _count: {
