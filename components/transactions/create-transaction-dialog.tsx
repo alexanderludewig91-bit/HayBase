@@ -40,6 +40,7 @@ export function CreateTransactionDialog({
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     accountId: "",
+    name: "",
     amount: "",
     status: "BOOKED",
     category: "",
@@ -69,6 +70,7 @@ export function CreateTransactionDialog({
         setFormData({
           date: new Date().toISOString().split("T")[0],
           accountId: "",
+          name: "",
           amount: "",
           status: "BOOKED",
           category: "",
@@ -131,6 +133,18 @@ export function CreateTransactionDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="name">Bezeichnung</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
+                placeholder="z.B. Gehalt Januar, Miete Wohnung"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="amount">Betrag</Label>

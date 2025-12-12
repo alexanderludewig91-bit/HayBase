@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { userId, monthId, date, accountId, amount, status, category, notes } = body
+    const { userId, monthId, date, accountId, name, amount, status, category, notes } = body
 
     if (userId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         monthId,
         accountId,
         date: new Date(date),
+        name: name || "",
         amount: absoluteAmount,
         transactionType,
         status,

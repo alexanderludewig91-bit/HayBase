@@ -15,7 +15,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { date, accountId, amount, status, category, notes } = body
+    const { date, accountId, name, amount, status, category, notes } = body
 
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
@@ -36,6 +36,7 @@ export async function PATCH(
       data: {
         date: new Date(date),
         accountId,
+        name: name || "",
         amount: absoluteAmount,
         transactionType,
         status,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -45,6 +45,7 @@ export function EditTransactionDialog({
   const [formData, setFormData] = useState<{
     date: string
     accountId: string
+    name: string
     amount: string
     status: TransactionStatus
     category: string
@@ -52,11 +53,32 @@ export function EditTransactionDialog({
   }>({
     date: new Date(transaction.date).toISOString().split("T")[0],
     accountId: transaction.accountId,
+    name: transaction.name || "",
     amount: getAmountWithSign().toString(),
     status: transaction.status,
     category: transaction.category,
     notes: transaction.notes || "",
   })
+
+  // Aktualisiere formData, wenn sich die transaction Prop ändert
+  useEffect(() => {
+    const getAmountWithSign = () => {
+      const amount = Number(transaction.amount)
+      return transaction.transactionType === "EXPENSE" ? -amount : amount
+    }
+
+    setFormData({
+      date: new Date(transaction.date).toISOString().split("T")[0],
+      accountId: transaction.accountId,
+      name: transaction.name || "",
+      amount: getAmountWithSign().toString(),
+      status: transaction.status,
+      category: transaction.category,
+      notes: transaction.notes || "",
+    })
+    // Schließe den Dialog, wenn sich die transaction ändert (z.B. nach Refresh)
+    setOpen(false)
+  }, [transaction.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -135,6 +157,18 @@ export function EditTransactionDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="name">Bezeichnung</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
+                placeholder="z.B. Gehalt Januar, Miete Wohnung"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="amount">Betrag</Label>

@@ -293,6 +293,7 @@ export default async function MonthDetailPage({
               <TableRow>
                 <TableHead>Datum</TableHead>
                 <TableHead>Konto</TableHead>
+                <TableHead>Bezeichnung</TableHead>
                 <TableHead>Kategorie</TableHead>
                 <TableHead className="text-right">Betrag</TableHead>
                 <TableHead>Status</TableHead>
@@ -301,7 +302,7 @@ export default async function MonthDetailPage({
             <TableBody>
               {month.transactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Keine Transaktionen gefunden
                   </TableCell>
                 </TableRow>
@@ -312,6 +313,7 @@ export default async function MonthDetailPage({
                       {new Date(transaction.date).toLocaleDateString("de-DE")}
                     </TableCell>
                     <TableCell>{transaction.account.name}</TableCell>
+                    <TableCell className="font-medium">{transaction.name || "-"}</TableCell>
                     <TableCell>{transaction.category}</TableCell>
                     <TableCell className={`text-right ${transaction.transactionType === "INCOME" ? "text-green-600" : "text-red-600"}`}>
                       {transaction.transactionType === "INCOME" ? "+" : "-"}

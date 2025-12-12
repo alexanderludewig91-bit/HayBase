@@ -107,6 +107,7 @@ model Transaction {
   accountId       String            @map("account_id")
   monthId         String            @map("month_id")
   date            DateTime
+  name            String            @default("") // Bezeichnung der Buchung
   amount          Decimal           @db.Decimal(12, 2)
   transactionType TransactionType   @map("transaction_type")
   status          TransactionStatus

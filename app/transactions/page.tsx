@@ -171,6 +171,7 @@ export default async function TransactionsPage({
                     <TableRow>
                       <TableHead>Datum</TableHead>
                       <TableHead>Konto</TableHead>
+                      <TableHead>Bezeichnung</TableHead>
                       <TableHead>Kategorie</TableHead>
                       <TableHead className="text-right">Betrag</TableHead>
                       <TableHead>Status</TableHead>
@@ -180,7 +181,7 @@ export default async function TransactionsPage({
                   <TableBody>
                     {transactions.length === 0 && transfers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
                           Keine Transaktionen gefunden
                         </TableCell>
                       </TableRow>
@@ -192,6 +193,7 @@ export default async function TransactionsPage({
                               {new Date(transaction.date).toLocaleDateString("de-DE")}
                             </TableCell>
                             <TableCell>{transaction.account.name}</TableCell>
+                            <TableCell className="font-medium">{transaction.name || "-"}</TableCell>
                             <TableCell>{transaction.category}</TableCell>
                             <TableCell className={`text-right ${transaction.transactionType === "INCOME" ? "text-green-600" : "text-red-600"}`}>
                               {transaction.transactionType === "INCOME" ? "+" : "-"}
@@ -256,7 +258,10 @@ export default async function TransactionsPage({
                         <div className="p-4 space-y-3">
                           <div className="flex justify-between items-start gap-3">
                             <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-base mb-1.5 truncate">{transaction.category}</div>
+                              <div className="font-semibold text-base mb-1.5 truncate">{transaction.name || transaction.category}</div>
+                              {transaction.name && (
+                                <div className="text-sm text-muted-foreground mb-1">{transaction.category}</div>
+                              )}
                               <div className="text-sm text-muted-foreground mb-1">{transaction.account.name}</div>
                               <div className="text-xs text-muted-foreground">
                                 {new Date(transaction.date).toLocaleDateString("de-DE", {

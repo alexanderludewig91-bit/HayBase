@@ -384,6 +384,7 @@ export default async function DashboardPage() {
                     <TableRow>
                       <TableHead>Datum</TableHead>
                       <TableHead>Konto</TableHead>
+                      <TableHead>Bezeichnung</TableHead>
                       <TableHead>Kategorie</TableHead>
                       <TableHead className="text-right">Betrag</TableHead>
                       <TableHead>Status</TableHead>
@@ -392,7 +393,7 @@ export default async function DashboardPage() {
                   <TableBody>
                     {recentTransactions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           Keine Transaktionen gefunden
                         </TableCell>
                       </TableRow>
@@ -403,6 +404,7 @@ export default async function DashboardPage() {
                             {new Date(transaction.date).toLocaleDateString("de-DE")}
                           </TableCell>
                           <TableCell>{transaction.account.name}</TableCell>
+                          <TableCell className="font-medium">{transaction.name || "-"}</TableCell>
                           <TableCell>{transaction.category}</TableCell>
                           <TableCell className={`text-right ${transaction.transactionType === "INCOME" ? "text-green-600" : "text-red-600"}`}>
                             {transaction.transactionType === "INCOME" ? "+" : "-"}
@@ -432,7 +434,10 @@ export default async function DashboardPage() {
                       <div className="flex flex-col space-y-2">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <div className="font-semibold text-base mb-1">{transaction.category}</div>
+                            <div className="font-semibold text-base mb-1">{transaction.name || transaction.category}</div>
+                            {transaction.name && (
+                              <div className="text-sm text-muted-foreground mb-1">{transaction.category}</div>
+                            )}
                             <div className="text-sm text-muted-foreground">{transaction.account.name}</div>
                             <div className="text-sm text-muted-foreground mt-1">
                               {new Date(transaction.date).toLocaleDateString("de-DE")}
