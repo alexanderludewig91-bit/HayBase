@@ -42,11 +42,19 @@ async function getCurrentMonth(userId: string) {
   })
 
   if (!month) {
-    // Fallback: neuester Monat
+    // Fallback: neuester Monat (gleiche Includes wie oben, sonst fehlen z. B. reserves)
     month = await prisma.month.findFirst({
       where: { userId },
       include: {
         transactions: {
+          include: {
+            account: true,
+          },
+          orderBy: {
+            date: "desc",
+          },
+        },
+        reserves: {
           include: {
             account: true,
           },
